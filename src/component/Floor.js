@@ -1,12 +1,12 @@
 import React, { Component } from "react";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-import { Map, ImageOverlay, Marker, Popup } from "react-leaflet";
+import { Map, ImageOverlay, Popup, Polygon } from "react-leaflet";
 // import Control from "react-leaflet-control";
-import util from "../util/date.js";
+// import util from "../util/date.js";
 import booth from "../image/icon/booth.png";
-import f1 from "../image/floormap/1f.png";
-import test from "../image/floormap/test.jpeg";
+// import f1 from "../image/floormap/1f.png";
+import floormap from "../image/floormap/MapKosongBBAF.png";
 import marker from "./marker";
 
 class Floor extends Component {
@@ -25,21 +25,20 @@ class Floor extends Component {
     this.state = {
       width: window.innerWidth,
       height: window.innerHeight,
+      pathColor: "purple",
       currentZoomLevel: 1,
       bounds: iniBounds,
       targetFloor: "delta_f1",
       floors: {
         name: "F1",
-        image: test,
+        image: floormap,
         markers: marker.markerArray,
       },
+      disable: false,
     };
-    this.updateWindowDimensions = this.updateWindowDimensions.bind(this);
   }
 
   componentDidMount() {
-    this.updateWindowDimensions();
-    window.addEventListener("resize", this.updateWindowDimensions.bind(this));
     const map = this.map.leafletElement;
 
     map.on("zoomend", () => {
@@ -52,8 +51,8 @@ class Floor extends Component {
       // this.handleChangeFloor();
     });
 
-    const w = 1920 * 2,
-      h = 1080 * 2;
+    const w = 3522,
+      h = 2507;
 
     const southWest = map.unproject([0, h], map.getMaxZoom() - 1);
     const northEast = map.unproject([w, 0], map.getMaxZoom() - 1);
@@ -63,65 +62,74 @@ class Floor extends Component {
     map.setMaxBounds(bounds);
   }
 
-  componentWillUnmount() {
-    window.removeEventListener(
-      "resize",
-      this.updateWindowDimensions.bind(this)
-    );
-  }
-
-  updateWindowDimensions() {
-    this.setState({ width: window.innerWidth, height: window.innerHeight });
-  }
-
   handleZoomLevelChange(newZoomLevel) {
     this.setState({ currentZoomLevel: newZoomLevel });
   }
 
-  //   handleChangeFloor(e) {
-  //     this.setState({ targetFloor: e.target.dataset.floor });
-  //   }
+  handleChangeFloor(e) {
+    this.setState({ targetFloor: e.target.dataset.floor });
+  }
 
   handleAddMarker(e, map) {
-    const cid = util.datetick();
-
-    var _marker = {
-      id: cid,
-      lat: e.latlng.lat,
-      lng: e.latlng.lng,
-    };
+    // const cid = util.datetick();
 
     // add Marker to state
-    let _floors = Object.assign({}, this.state.floors);
-    _floors.markers = [..._floors.markers, _marker];
+    // let _floors = Object.assign({}, this.state.floors);
+    // _floors.markers = [..._floors.markers, _marker];
 
-    this.setState({
-      floors: _floors,
-    });
+    // this.setState({
+    //   floors: _floors,
+    // });
     console.log(e.latlng);
   }
 
-  updateMarkerPosition(e) {
-    const { lat, lng } = e.target.getLatLng();
-
+  updatePolygonColor1(e) {
     let updatedMarkers = this.state.floors.markers.map((m) => {
+      if (!m.active) {
+        e.target.openPopup();
+      }
       if (m.id === e.target.options.id) {
-        m.lat = lat;
-        m.lng = lng;
+        m.active = true;
       }
       return m;
     });
-
-    // update Marker to state
     this.setState({ markers: updatedMarkers });
   }
 
-  render() {
-    // window.console.log(
-    //   "this.state.currentZoomLevel ->",
-    //   this.state.currentZoomLevel
-    // );
+  updatePolygonColor2(e) {
+    let updatedMarkers = this.state.floors.markers.map((m) => {
+      if (!m.active) {
+        e.target.closePopup();
+      }
+      if (m.id === e.target.options.id) {
+        m.active = false;
+      }
+      return m;
+    });
+    this.setState({ markers: updatedMarkers });
+  }
 
+  onClickPolygon1(e) {
+    let updatedMarkers = this.state.floors.markers.map((m) => {
+      if (m.id === e.target.options.id) {
+        m.active = true;
+      }
+      return m;
+    });
+    this.setState({ markers: updatedMarkers, disable: true });
+  }
+
+  onClickPolygon2(e) {
+    let updatedMarkers = this.state.floors.markers.map((m) => {
+      if (m.id === e.target.options.id) {
+        m.active = false;
+      }
+      return m;
+    });
+    this.setState({ markers: updatedMarkers, disable: false });
+  }
+
+  render() {
     return (
       <div className="App">
         <Map
@@ -140,21 +148,34 @@ class Floor extends Component {
             bounds={this.state.bounds}
           >
             {this.state.floors.markers.map((m) => (
-              <Marker
+              <Polygon
                 key={m.id}
                 id={m.id}
-                draggable={false}
-                onDragend={this.updateMarkerPosition.bind(this)}
-                position={[m.lat, m.lng]}
-                icon={this.customPin}
+                fillColor={m.active ? "blue" : "#fcf803"}
+                fillOpacity={0.5}
+                weight={0}
+                color={"white"}
+                positions={m.polygon}
+                onclick={this.onClickPolygon1.bind(this)}
+                onpopupclose={this.onClickPolygon2.bind(this)}
+                onMouseOver={
+                  this.state.disable
+                    ? null
+                    : this.updatePolygonColor1.bind(this)
+                }
+                onMouseOut={
+                  this.state.disable
+                    ? null
+                    : this.updatePolygonColor2.bind(this)
+                }
               >
                 <Popup minWidth={90}>
-                  <span>
-                    {" "}
-                    Lat:{m.lat}, Lng:{m.lng}{" "}
+                  <span style={{ fontWeight: "bold" }}>
+                    {m.number} <br />
+                    {m.name}
                   </span>
                 </Popup>
-              </Marker>
+              </Polygon>
             ))}
           </ImageOverlay>
 
